@@ -38,33 +38,16 @@ if (process.env.NODE_ENV === 'production') {
   app.use(morgan('dev'));
 }
 
-// CORS configuration
-const allowedOrigins = [
-  process.env.FRONTEND_URL,
-  'http://localhost:8080',
-  'http://localhost:3000'
-].filter(Boolean); // Remove any undefined values
-
+// CORS configuration - ALLOW ALL ORIGINS
 app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps, curl requests)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-    
-    // Check if origin matches a pattern (for subdomains)
-    const originPatterns = allowedOrigins.map(o => o.replace('http://', 'https://'));
-    if (originPatterns.some(pattern => origin.startsWith(pattern))) {
-      return callback(null, true);
-    }
-    
-    return callback(new Error('Not allowed by CORS'));
-  },
+  origin: true, // Allow all origins
   credentials: true,
-  optionsSuccessStatus: 200
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
 }));
+
+// Handle preflight requests for all routes
+app.options('*', cors());
 
 // Rate limiting middleware
 const rateLimit = require('express-rate-limit');
@@ -90,7 +73,8 @@ app.get('/health', (req, res) => {
   res.status(200).json({ 
     message: 'Server is running', 
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
+    environment: process.env.NODE_ENV || 'development',
+    cors: 'All origins allowed'
   });
 });
 
@@ -98,14 +82,6 @@ app.get('/health', (req, res) => {
 app.use((err, req, res, next) => {
   console.error('Error:', err.message);
   console.error('Stack:', err.stack);
-  
-  // CORS error handling
-  if (err.message === 'Not allowed by CORS') {
-    return res.status(403).json({ 
-      error: 'CORS policy: Request not allowed',
-      details: 'The request was blocked by CORS policy'
-    });
-  }
   
   // Rate limit error
   if (err.status === 429) {
@@ -157,6 +133,7 @@ if (process.env.NODE_ENV !== 'test') {
   app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
     console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log('CORS: All origins allowed');
   });
 }
 
